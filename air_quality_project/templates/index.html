@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Air Quality Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌍 Air Quality Big Data Dashboard</h1>
+            <p>Data-driven monitoring and ML predictions for Belgrade, Novi Sad, and Nis</p>
+        </header>
+
+        <!-- Stats -->
+        <section class="stats-section">
+            <h2>📊 System Statistics</h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>{{ stats.raw }}</h3>
+                    <p>Raw Measurements</p>
+                </div>
+                <div class="stat-card">
+                    <h3>{{ stats.processed }}</h3>
+                    <p>Processed Records</p>
+                </div>
+                <div class="stat-card">
+                    <h3>{{ stats.predictions }}</h3>
+                    <p>ML Predictions</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ML Model Validation Section -->
+        {% if validation %}
+        <section class="validation-section">
+            <h2>🤖 ML Model Validation</h2>
+            <div class="validation-grid">
+                <div class="validation-card">
+                    <div class="metric-label">R² Score</div>
+                    <div class="metric-value">{{ validation.r2_percent }}%</div>
+                    <div class="metric-desc">Variance Explained</div>
+                </div>
+                <div class="validation-card">
+                    <div class="metric-label">RMSE</div>
+                    <div class="metric-value">{{ validation.rmse }}</div>
+                    <div class="metric-desc">μg/m³ Error</div>
+                </div>
+                <div class="validation-card">
+                    <div class="metric-label">MAE</div>
+                    <div class="metric-value">{{ validation.mae }}</div>
+                    <div class="metric-desc">Mean Absolute Error</div>
+                </div>
+                <div class="validation-card">
+                    <div class="metric-label">Training Data</div>
+                    <div class="metric-value">{{ validation.total_samples }}</div>
+                    <div class="metric-desc">Total Samples</div>
+                </div>
+            </div>
+            <div class="validation-info">
+                <p><strong>Model Interpretation:</strong> 
+                {% if validation.r2_percent >= 80 %}
+                    ✅ Excellent predictive accuracy - Model explains {{ validation.r2_percent }}% of PM2.5 variance
+                {% elif validation.r2_percent >= 70 %}
+                    ✅ Good predictive power - Reliable for forecasting air quality trends
+                {% elif validation.r2_percent >= 60 %}
+                    ⚠️ Acceptable performance - Moderate predictive capability
+                {% else %}
+                    ⚠️ Limited accuracy - Model has constraints in prediction
+                {% endif %}
+                </p>
+                <p><strong>Prediction Accuracy:</strong> Average error of ±{{ validation.mae }} μg/m³ 
+                (predictions typically within {{ validation.mae }} μg/m³ of actual values)</p>
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- Latest Readings -->
+        <section class="readings-section">
+            <h2>📍 Latest Readings</h2>
+            <div class="readings-grid">
+                {% for city, parameters in latest_readings.items() %}
+                <div class="city-card">
+                    <h3>{{ city }}</h3>
+                    <div class="parameters">
+                        {% for param, data in parameters.items() %}
+                        <div class="parameter">
+                            <span class="param-name">{{ param.upper() }}:</span>
+                            <span class="param-value">{{ data.value }} {{ data.unit }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <p class="timestamp">{{ parameters.get('pm25', {}).get('time', 'N/A') }}</p>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <!-- City Selection -->
+        <section class="controls-section">
+            <h2>🔍 Select City</h2>
+            <div class="city-buttons">
+                {% for city in cities %}
+                <button class="city-btn" onclick="loadCityData('{{ city }}')">{{ city }}</button>
+                {% endfor %}
+            </div>
+        </section>
+
+        <!-- Charts -->
+        <div id="charts-container">
+            <section class="chart-section">
+                <h2>📈 PM2.5 Trend (Last 7 Days)</h2>
+                <div id="trend-chart"></div>
+            </section>
+
+            <section class="chart-section">
+                <h2>⏰ Hourly Pattern</h2>
+                <div id="hourly-chart"></div>
+            </section>
+
+            <section class="chart-section">
+                <h2>🔮 ML Predictions (Next 24 Hours)</h2>
+                <div id="predictions-chart"></div>
+            </section>
+        </div>
+
+        <!-- City Comparison -->
+        <section class="chart-section">
+            <h2>🏙️ City Comparison</h2>
+            <div id="comparison-chart"></div>
+        </section>
+
+        <footer>
+            <p>Built with Flask, Pandas, MongoDB & Machine Learning | Big Data 2025</p>
+            <p style="font-size: 0.9em; color: #999; margin-top: 10px;">
+                Data Source: OpenAQ Historical Dataset | Model: Random Forest Regressor
+            </p>
+        </footer>
+    </div>
+
+    <script>
+        let currentCity = '{{ cities[0] }}';
+
+        async function loadCityData(city) {
+            currentCity = city;
+            
+            document.querySelectorAll('.city-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.textContent === city) {
+                    btn.classList.add('active');
+                }
+            });
+
+            await loadTrendChart(city);
+            await loadHourlyChart(city);
+            await loadPredictionsChart(city);
+        }
+
+        async function loadTrendChart(city) {
+            const response = await fetch(`/api/city-trends/${city}`);
+            const data = await response.json();
+
+            const trace1 = {
+                x: data.dates,
+                y: data.avg_values,
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: 'Average',
+                line: {color: '#3498db', width: 3}
+            };
+
+            const trace2 = {
+                x: data.dates,
+                y: data.max_values,
+                type: 'scatter',
+                mode: 'lines',
+                name: 'Max',
+                line: {color: '#e74c3c', width: 2, dash: 'dash'}
+            };
+
+            const trace3 = {
+                x: data.dates,
+                y: data.min_values,
+                type: 'scatter',
+                mode: 'lines',
+                name: 'Min',
+                line: {color: '#2ecc71', width: 2, dash: 'dash'}
+            };
+
+            const layout = {
+                title: `${city} - PM2.5 Levels`,
+                xaxis: {title: 'Date'},
+                yaxis: {title: 'PM2.5 (μg/m³)'},
+                hovermode: 'x unified'
+            };
+
+            Plotly.newPlot('trend-chart', [trace1, trace2, trace3], layout);
+        }
+
+        async function loadHourlyChart(city) {
+            const response = await fetch(`/api/hourly-pattern/${city}`);
+            const data = await response.json();
+
+            const trace = {
+                x: data.hours,
+                y: data.values,
+                type: 'bar',
+                marker: {
+                    color: data.values,
+                    colorscale: 'Viridis'
+                }
+            };
+
+            const layout = {
+                title: `${city} - Average PM2.5 by Hour`,
+                xaxis: {title: 'Hour of Day'},
+                yaxis: {title: 'PM2.5 (μg/m³)'}
+            };
+
+            Plotly.newPlot('hourly-chart', [trace], layout);
+        }
+
+        async function loadPredictionsChart(city) {
+            const response = await fetch(`/api/predictions/${city}`);
+            const data = await response.json();
+
+            const trace = {
+                x: data.hours_ahead,
+                y: data.predicted_values,
+                type: 'scatter',
+                mode: 'lines+markers',
+                line: {color: '#9b59b6', width: 3},
+                marker: {size: 8}
+            };
+
+            const layout = {
+                title: `${city} - ML Predictions`,
+                xaxis: {title: 'Hours Ahead'},
+                yaxis: {title: 'Predicted PM2.5 (μg/m³)'}
+            };
+
+            Plotly.newPlot('predictions-chart', [trace], layout);
+        }
+
+        async function loadComparisonChart() {
+            const response = await fetch('/api/city-comparison');
+            const data = await response.json();
+
+            const trace = {
+                x: data.cities,
+                y: data.avg_values,
+                type: 'bar',
+                marker: {
+                    color: ['#e74c3c', '#3498db', '#2ecc71']
+                }
+            };
+
+            const layout = {
+                title: 'City Comparison - Average PM2.5',
+                xaxis: {title: 'City'},
+                yaxis: {title: 'Average PM2.5 (μg/m³)'}
+            };
+
+            Plotly.newPlot('comparison-chart', [trace], layout);
+        }
+
+        window.onload = async function() {
+            await loadCityData(currentCity);
+            await loadComparisonChart();
+        };
+    </script>
+</body>
+</html>

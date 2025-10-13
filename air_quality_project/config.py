@@ -15,11 +15,11 @@ COLLECTION_HOURLY = "hourly_stats"
 COLLECTION_PREDICTIONS = "predictions"
 
 # OpenAQ API
-OPENAQ_BASE_URL = "https://api.openaq.org/v2"
+OPENAQ_BASE_URL = "https://api.openaq.org/v3"
 OPENAQ_API_KEY = os.getenv("OPENAQ_API_KEY", None)
 
 # Cities to monitor
-CITIES = ["Belgrade", "Novi Sad", "Brčko"]
+CITIES = ["Beograd", "Novi Sad", "Nis"]
 
 # Air quality parameters
 PARAMETERS = ["pm25", "pm10", "o3", "no2", "so2", "co"]

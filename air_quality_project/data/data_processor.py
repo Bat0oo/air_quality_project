@@ -2,9 +2,9 @@ import pandas as pd
 import numpy as np
 import sys
 sys.path.append('..')
-from database.db_manager import DatabaseManager
-import config
-from datetime import datetime
+from air_quality_project.database.db_manager import DatabaseManager
+from air_quality_project import config
+import datetime as dt
 
 class DataProcessor:
     def __init__(self):
@@ -181,8 +181,10 @@ class DataProcessor:
                     record[key] = None
                 elif isinstance(value, pd.Timestamp):
                     record[key] = value.to_pydatetime()
+                elif isinstance(value, dt.date) and not isinstance(value, dt.datetime):
+                    record[key] = dt.datetime.combine(value, dt.datetime.min.time())
             
-            record['processed_at'] = datetime.utcnow()
+            record['processed_at'] = dt.datetime.utcnow()
         
         # Clear existing data
         self.db.clear_collection(collection_name)

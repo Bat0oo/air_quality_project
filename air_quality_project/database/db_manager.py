@@ -1,6 +1,6 @@
 import pymongo
 from pymongo import MongoClient
-import config
+from air_quality_project import config
 from datetime import datetime
 
 class DatabaseManager:
