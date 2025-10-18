@@ -51,10 +51,10 @@ def create_demo_csv(city_name, base_pm25, num_records=100):
     data = {
         'location_name': [f'{city_name} Monitoring Station' for _ in range(num_records)],
         'location_id': [np.random.randint(10000, 99999) for _ in range(num_records)],
-        'latitude': [44.8125 if city_name == 'Belgrade' else 
+        'latitude': [44.8125 if city_name == 'Beograd' else 
                      45.2671 if city_name == 'Novi Sad' else 
                      43.3209 for _ in range(num_records)],
-        'longitude': [20.4612 if city_name == 'Belgrade' else 
+        'longitude': [20.4612 if city_name == 'Beograd' else 
                       19.8335 if city_name == 'Novi Sad' else 
                       21.8954 for _ in range(num_records)],
         'parameter': ['pm25' for _ in range(num_records)],
@@ -84,7 +84,7 @@ def main():
     
     # City configurations (city_name, typical_pm25_value)
     cities = [
-        ('Belgrade', 30),   # Typically moderate pollution
+        ('Beograd', 30),   # Typically moderate pollution
         ('Novi Sad', 25),   # Slightly less
         ('Nis', 35)         # Slightly more
     ]
